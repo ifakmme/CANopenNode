@@ -287,6 +287,39 @@ static CO_SDO_abortCode_t CO_ODF_1200(CO_ODF_arg_t *ODF_arg){
     return ret;
 }
 
+/*
+ * Function to check COB-ID
+ */
+static CO_SDO_abortCode_t CO_COB_check(uint32_t COB){
+    CO_SDO_abortCode_t ret = CO_SDO_AB_NONE;
+
+    if (COB == 0){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0 && COB < 0x80){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x100 && COB < 0x181){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x580 && COB < 0x600){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x600 && COB < 0x680){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x6DF && COB < 0x700){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x700 && COB < 0x780){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    else if(COB > 0x77F && COB < 0x800){
+        ret = CO_SDO_AB_INVALID_VALUE;
+    }
+    return ret;
+}
+
 
 /******************************************************************************/
 CO_ReturnError_t CO_SDO_init(
@@ -700,7 +733,9 @@ uint32_t CO_SDO_readOD(CO_SDO_t *SDO, uint16_t SDOBufferSize){
 uint32_t CO_SDO_writeOD(CO_SDO_t *SDO, uint16_t length){
     uint8_t *SDObuffer = SDO->ODF_arg.data;
     uint8_t *ODdata = (uint8_t*)SDO->ODF_arg.ODdataStorage;
+    uint32_t COB = 0;
     bool_t exception_1003 = false;
+    CO_SDO_abortCode_t ret = CO_SDO_AB_NONE;
 
     /* is object writeable? */
     if((SDO->ODF_arg.attribute & CO_ODA_WRITEABLE) == 0){
@@ -732,6 +767,35 @@ uint32_t CO_SDO_writeOD(CO_SDO_t *SDO, uint16_t length){
         }
     }
 #endif
+
+    /* Special exception: 1005 & 1012, invalid COB-ID */
+    if((SDO->ODF_arg.index == 0x1005 || SDO->ODF_arg.index == 0x1012) && SDO->ODF_arg.subIndex == 0) {
+        COB = 0x01000000 * SDObuffer[3] + 0x00010000 * SDObuffer[2] +
+              0x00000100 * SDObuffer[1] + SDObuffer[0];
+        ret = CO_COB_check(COB);
+        if (ret != CO_SDO_AB_NONE) {
+            return (ret);
+        }
+    }
+
+    /* Special exception: 1011, restore default write access signature must be "load"  */
+    if(SDO->ODF_arg.index == 0x1011 &&
+      (SDObuffer[0] != 0x6c || /* l */
+       SDObuffer[1] != 0x6f || /* o */
+       SDObuffer[2] != 0x61 || /* a */
+       SDObuffer[3] != 0x64)) { /* d */
+       return CO_SDO_AB_DATA_TRANSF;
+    }
+
+    /* Special exception: 1800 to 19FF invalid COB-ID */
+    if((SDO->ODF_arg.index > 0x17FF && SDO->ODF_arg.index < 0x1A00) && SDO->ODF_arg.subIndex == 1) {
+        COB = 0x01000000 * SDObuffer[3] + 0x00010000 * SDObuffer[2] +
+              0x00000100 * SDObuffer[1] + SDObuffer[0];
+        ret = CO_COB_check(COB);
+        if (ret != CO_SDO_AB_NONE) {
+            return (ret);
+        }
+    }
 
     CO_LOCK_OD();
 

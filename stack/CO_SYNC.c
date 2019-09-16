@@ -43,7 +43,6 @@
  * to do so, delete this exception statement from your version.
  */
 
-
 #include "CO_driver.h"
 #include "CO_SDO.h"
 #include "CO_Emergency.h"
@@ -67,6 +66,10 @@ static void CO_SYNC_receive(void *object, const CO_CANrxMsg_t *msg){
     if((operState == CO_NMT_OPERATIONAL) || (operState == CO_NMT_PRE_OPERATIONAL)){
         if(SYNC->counterOverflowValue == 0){
             if(msg->DLC == 0U){
+                SYNC->counter = SYNC->counter + 1;
+                if (SYNC->counter == 241) {
+                    SYNC->counter = 1;
+                }
                 SET_CANrxNew(SYNC->CANrxNew);
             }
             else{
@@ -369,6 +372,9 @@ uint8_t CO_SYNC_process(
     }
     else {
         CLEAR_CANrxNew(SYNC->CANrxNew);
+        SYNC->counter = 0;
+        SYNC->receiveError = 0;
+        SYNC->timer = 0;
     }
 
     /* verify error from receive function */

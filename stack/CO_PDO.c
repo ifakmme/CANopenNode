@@ -66,36 +66,41 @@ static void CO_PDO_receive(void *object, const CO_CANrxMsg_t *msg){
 
     RPDO = (CO_RPDO_t*)object;   /* this is the correct pointer type of the first argument */
 
-    if( (RPDO->valid) &&
-        (*RPDO->operatingState == CO_NMT_OPERATIONAL) &&
-        (msg->DLC >= RPDO->dataLength))
+    if (msg->DLC >= RPDO->dataLength)
     {
-        if(RPDO->synchronous && RPDO->SYNC->CANrxToggle) {
-            /* copy data into second buffer and set 'new message' flag */
-            RPDO->CANrxData[1][0] = msg->data[0];
-            RPDO->CANrxData[1][1] = msg->data[1];
-            RPDO->CANrxData[1][2] = msg->data[2];
-            RPDO->CANrxData[1][3] = msg->data[3];
-            RPDO->CANrxData[1][4] = msg->data[4];
-            RPDO->CANrxData[1][5] = msg->data[5];
-            RPDO->CANrxData[1][6] = msg->data[6];
-            RPDO->CANrxData[1][7] = msg->data[7];
+        if( (RPDO->valid) &&
+            (*RPDO->operatingState == CO_NMT_OPERATIONAL) )
+        {
+            if(RPDO->synchronous && RPDO->SYNC->CANrxToggle) {
+                /* copy data into second buffer and set 'new message' flag */
+                RPDO->CANrxData[1][0] = msg->data[0];
+                RPDO->CANrxData[1][1] = msg->data[1];
+                RPDO->CANrxData[1][2] = msg->data[2];
+                RPDO->CANrxData[1][3] = msg->data[3];
+                RPDO->CANrxData[1][4] = msg->data[4];
+                RPDO->CANrxData[1][5] = msg->data[5];
+                RPDO->CANrxData[1][6] = msg->data[6];
+                RPDO->CANrxData[1][7] = msg->data[7];
 
-            SET_CANrxNew(RPDO->CANrxNew[1]);
-        }
-        else {
-            /* copy data into default buffer and set 'new message' flag */
-            RPDO->CANrxData[0][0] = msg->data[0];
-            RPDO->CANrxData[0][1] = msg->data[1];
-            RPDO->CANrxData[0][2] = msg->data[2];
-            RPDO->CANrxData[0][3] = msg->data[3];
-            RPDO->CANrxData[0][4] = msg->data[4];
-            RPDO->CANrxData[0][5] = msg->data[5];
-            RPDO->CANrxData[0][6] = msg->data[6];
-            RPDO->CANrxData[0][7] = msg->data[7];
+                SET_CANrxNew(RPDO->CANrxNew[1]);
+            } else {
+                /* copy data into default buffer and set 'new message' flag */
+                RPDO->CANrxData[0][0] = msg->data[0];
+                RPDO->CANrxData[0][1] = msg->data[1];
+                RPDO->CANrxData[0][2] = msg->data[2];
+                RPDO->CANrxData[0][3] = msg->data[3];
+                RPDO->CANrxData[0][4] = msg->data[4];
+                RPDO->CANrxData[0][5] = msg->data[5];
+                RPDO->CANrxData[0][6] = msg->data[6];
+                RPDO->CANrxData[0][7] = msg->data[7];
 
-            SET_CANrxNew(RPDO->CANrxNew[0]);
+                SET_CANrxNew(RPDO->CANrxNew[0]);
+            }
         }
+    }
+    else
+    {
+        CO_errorReport(RPDO->em, CO_EMC_PROTOCOL_ERROR, CO_EMC_PDO_LENGTH, msg->DLC);
     }
 }
 
@@ -1004,10 +1009,12 @@ void CO_TPDO_process(
             else{
                 /* is the start of synchronous TPDO transmission */
                 if(TPDO->syncCounter == 255){
-                    if(SYNC->counterOverflowValue && TPDO->TPDOCommPar->SYNCStartValue)
+                    if(SYNC->counterOverflowValue && TPDO->TPDOCommPar->SYNCStartValue) {
                         TPDO->syncCounter = 254;   /* SYNCStartValue is in use */
-                    else
-                        TPDO->syncCounter = TPDO->TPDOCommPar->transmissionType;
+                    } else {
+                        TPDO->syncCounter = TPDO->TPDOCommPar->transmissionType - (SYNC->counter % TPDO->TPDOCommPar->transmissionType) + 1;
+                        CO_TPDOsend(TPDO);
+                    }
                 }
                 /* if the SYNCStartValue is in use, start first TPDO after SYNC with matched SYNCStartValue. */
                 if(TPDO->syncCounter == 254){
@@ -1023,7 +1030,36 @@ void CO_TPDO_process(
                 }
             }
         }
+    }
+    /* Synchronisation works already in pre-operational state */
+    else if (TPDO->valid && *TPDO->operatingState == CO_NMT_PRE_OPERATIONAL){
+        /* Synchronous PDOs */
+        if(SYNC && syncWas){
+            if(TPDO->TPDOCommPar->transmissionType < 253){
+                /* is the start of synchronous TPDO transmission */
+                if(TPDO->syncCounter == 255){
+                    if(SYNC->counterOverflowValue && TPDO->TPDOCommPar->SYNCStartValue)
+                        TPDO->syncCounter = 254;   /* SYNCStartValue is in use */
+                    else{
+                        TPDO->syncCounter = TPDO->TPDOCommPar->transmissionType - (SYNC->counter % TPDO->TPDOCommPar->transmissionType) + 1;
+                    }
+                }
+                /* if the SYNCStartValue is in use, start first TPDO after SYNC with matched SYNCStartValue. */
+                if(TPDO->syncCounter == 254){
+                    if(SYNC->counter == TPDO->TPDOCommPar->SYNCStartValue){
+                        TPDO->syncCounter = TPDO->TPDOCommPar->transmissionType;
+                    }
+                }
+                /* Set sync counter after every N-th Sync */
+                else if(--TPDO->syncCounter == 0){
+                    TPDO->syncCounter = TPDO->TPDOCommPar->transmissionType;
+                }
+            }
+        }
 
+        /* Not operational or valid. Force TPDO first send after operational or valid. */
+        if(TPDO->TPDOCommPar->transmissionType>=254) TPDO->sendRequest = 1;
+        else                                         TPDO->sendRequest = 0;
     }
     else{
         /* Not operational or valid. Force TPDO first send after operational or valid. */
