@@ -762,6 +762,7 @@ CO_ReturnError_t CO_RPDO_init(
     RPDO->nodeId = nodeId;
     RPDO->defaultCOB_ID = defaultCOB_ID;
     RPDO->restrictionFlags = restrictionFlags;
+    RPDO->rcvRequest = false;
 
     /* Configure Object dictionary entry at index 0x1400+ and 0x1600+ */
     CO_OD_configure(SDO, idx_RPDOCommPar, CO_ODF_RPDOcom, (void*)RPDO, 0, 0);
@@ -945,6 +946,7 @@ void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
                 **(ppODdataByte++) = *(pPDOdataByte++);
             }
             update = true;
+            RPDO->rcvRequest = true;
         }
 #ifdef RPDO_CALLS_EXTENSION
         if(update==true && RPDO->SDO->ODExtensions){

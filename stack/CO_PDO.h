@@ -206,6 +206,8 @@ typedef struct{
     uint8_t             CANrxData[2][8];
     CO_CANmodule_t     *CANdevRx;       /**< From CO_RPDO_init() */
     uint16_t            CANdevRxIdx;    /**< From CO_RPDO_init() */
+    /** Application checks this flag and can handle the received process data */
+    bool_t              rcvRequest;
 }CO_RPDO_t;
 
 

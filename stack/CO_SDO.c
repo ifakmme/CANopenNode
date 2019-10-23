@@ -48,6 +48,8 @@
 #include "CO_SDO.h"
 #include "crc16-ccitt.h"
 
+#include <application.h>
+
 
 /* Client command specifier, see DS301 */
 #define CCS_DOWNLOAD_INITIATE          1U
