@@ -280,7 +280,7 @@ typedef struct{
     uint8_t            *bufReadPtr;     /**< Read pointer in the above buffer */
     uint8_t             bufFull;        /**< True if above buffer is full */
     uint8_t             wrongErrorReport;/**< Error in arguments to CO_errorReport() */
-    void              (*pFunctSignal)(void);/**< From CO_EM_initCallback() or NULL */
+    void              (*pFunctSignal)(bool_t isReport, const uint8_t errorBit, const uint32_t infoCode);/**< From CO_EM_initCallback() or NULL */
 }CO_EM_t;
 
 
@@ -404,7 +404,7 @@ CO_ReturnError_t CO_EM_init(
  */
 void CO_EM_initCallback(
         CO_EM_t               *em,
-        void                  (*pFunctSignal)(void));
+        void                  (*pFunctSignal)(bool_t isReport, const uint8_t errorBit, const uint32_t infoCode));
 
 
 /**
