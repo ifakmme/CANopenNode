@@ -49,6 +49,7 @@
 #include "CO_Emergency.h"
 #include "CO_NMT_Heartbeat.h"
 #include "CO_SYNC.h"
+#include "CO_OD.h"
 #include "CO_PDO.h"
 #include <string.h>
 
@@ -261,6 +262,9 @@ static uint32_t CO_PDOfindMap(
         return 0;
     }
 
+    /* SDOs of the slaves are not part of the CANopen master dictionary */
+#if (CO_NO_NMT_MASTER == 0)
+    /* SDOs of the slaves are not inluded within the master object dictionary */
     /* find object in Object Dictionary */
     entryNo = CO_OD_find(SDO, index);
 
@@ -288,6 +292,8 @@ static uint32_t CO_PDOfindMap(
     if(*pIsMultibyteVar){
         *ppData += objectLen - dataLen;
     }
+#endif
+    
 #endif
 
     /* setup change of state flags */
@@ -942,10 +948,13 @@ void CO_RPDO_process(CO_RPDO_t *RPDO, bool_t syncWas){
             /* Copy data to Object dictionary. If between the copy operation CANrxNew
              * is set to true by receive thread, then copy the latest data again. */
             CLEAR_CANrxNew(RPDO->CANrxNew[bufNo]);
+            /* SDOs of the slaves are not part of the CANopen master dictionary */
+#if (CO_NO_NMT_MASTER == 0)            
             for(; i>0; i--) {
                 **(ppODdataByte++) = *(pPDOdataByte++);
             }
             update = true;
+#endif
             RPDO->rcvRequest = true;
         }
 #ifdef RPDO_CALLS_EXTENSION

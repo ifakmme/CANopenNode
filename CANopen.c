@@ -175,6 +175,7 @@
 
         /* Apply NMT command also to this node, if set so. */
         if(nodeID == 0 || nodeID == CO->NMT->nodeId){
+            CO_NMT_internalState_t currentOperatingState = CO->NMT->operatingState;
             switch(command){
                 case CO_NMT_ENTER_OPERATIONAL:
                     if((*CO->NMT->emPr->errorRegister) == 0) {
@@ -194,9 +195,20 @@
                     CO->NMT->resetCommand = CO_RESET_COMM;
                     break;
             }
+            
+            if(CO->NMT->pFunctNMT != NULL &&
+               currentOperatingState != CO->NMT->operatingState)
+            {
+                CO->NMT->pFunctNMT(CO->NMT->operatingState);
+            }
         }
 
-        return CO_CANsend(CO->CANmodule[0], NMTM_txBuff); /* 0 = success */
+        if (nodeID != CO->NMT->nodeId)
+        {
+            return CO_CANsend(CO->CANmodule[0], NMTM_txBuff); /* 0 = success */
+        }
+        
+        return CO_ERROR_NO;
     }
 #endif
 
