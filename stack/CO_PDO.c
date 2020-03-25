@@ -264,7 +264,6 @@ static uint32_t CO_PDOfindMap(
 
     /* SDOs of the slaves are not part of the CANopen master dictionary */
 #if (CO_NO_NMT_MASTER == 0)
-    /* SDOs of the slaves are not inluded within the master object dictionary */
     /* find object in Object Dictionary */
     entryNo = CO_OD_find(SDO, index);
 
@@ -367,8 +366,10 @@ static uint32_t CO_RPDOconfigMap(CO_RPDO_t* RPDO, uint8_t noOfMappedObjects){
 #endif
 
     }
-
+    
+#if (CO_NO_NMT_MASTER == 0)
     RPDO->dataLength = length;
+#endif
 
     return ret;
 }
@@ -435,7 +436,9 @@ static uint32_t CO_TPDOconfigMap(CO_TPDO_t* TPDO, uint8_t noOfMappedObjects){
 
     }
 
+#if (CO_NO_NMT_MASTER == 0)
     TPDO->dataLength = length;
+#endif
 
     return ret;
 }
